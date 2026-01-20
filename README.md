@@ -21,3 +21,13 @@ API будет доступен на `http://localhost:8000`.
 ```bash
 export DATABASE_URL="postgresql+psycopg2://user:pass@localhost:5432/timecheck"
 ```
+
+Для JWT:
+```bash
+export SECRET_KEY="super-secret-key"
+```
+
+## Авторизация
+- `POST /auth/register` (email, password) -> токен
+- `POST /auth/login` (form-urlencoded) -> токен
+- `POST /sync` требует `Authorization: Bearer <token>`
