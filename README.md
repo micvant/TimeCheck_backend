@@ -31,3 +31,8 @@ export SECRET_KEY="super-secret-key"
 - `POST /auth/register` (email, password) -> токен
 - `POST /auth/login` (form-urlencoded) -> токен
 - `POST /sync` требует `Authorization: Bearer <token>`
+
+## Деплой (Render)
+В репозитории есть `render.yaml`. Достаточно:
+1. Создать новый сервис в Render из репозитория `TimeCheck_backend`
+2. Указать `DATABASE_URL` (Postgres) и при необходимости `SECRET_KEY`
