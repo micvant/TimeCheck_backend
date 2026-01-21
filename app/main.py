@@ -94,10 +94,16 @@ def get_current_user(
     return user
 
 
+def _normalize_dt(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(tz=None).replace(tzinfo=None)
+
+
 def _should_apply(existing: datetime | None, incoming: datetime) -> bool:
     if existing is None:
         return True
-    return incoming >= existing
+    return _normalize_dt(incoming) >= _normalize_dt(existing)
 
 
 def _apply_task(db: Session, user: User, payload: TaskPayload) -> None:
