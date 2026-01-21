@@ -53,6 +53,9 @@ def _get_user(db: Session, user_id: str) -> User | None:
 def _get_user_by_email(db: Session, email: str) -> User | None:
     return db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
+def _normalize_email(value: str) -> str:
+    return value.strip().lower()
+
 
 def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
@@ -128,11 +131,17 @@ def health():
 
 @app.post("/auth/register", response_model=TokenResponse)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
-    if _get_user_by_email(db, payload.email):
+    email = _normalize_email(payload.email)
+    password = payload.password.strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password too short")
+    if _get_user_by_email(db, email):
         raise HTTPException(status_code=409, detail="Email already registered")
     user = User(
-        email=payload.email.lower(),
-        password_hash=pwd_context.hash(payload.password),
+        email=email,
+        password_hash=pwd_context.hash(password),
     )
     db.add(user)
     db.commit()
@@ -146,8 +155,12 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    user = _get_user_by_email(db, form_data.username.lower())
-    if not user or not pwd_context.verify(form_data.password, user.password_hash):
+    email = _normalize_email(form_data.username)
+    password = form_data.password.strip()
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+    user = _get_user_by_email(db, email)
+    if not user or not pwd_context.verify(password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = _create_access_token(user.id)
     return TokenResponse(access_token=token)
