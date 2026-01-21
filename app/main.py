@@ -17,10 +17,29 @@ from .schemas import RegisterRequest, SyncRequest, SyncResponse, TaskPayload, Ti
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="TimeCheck API")
+
+
+def _get_allowed_origins() -> list[str]:
+    origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+    extra_origins = os.getenv("FRONTEND_ORIGINS", "")
+    if extra_origins:
+        origins.extend(
+            origin.strip()
+            for origin in extra_origins.split(",")
+            if origin.strip()
+        )
+    if os.getenv("ALLOW_ALL_ORIGINS") == "1":
+        return ["*"]
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_get_allowed_origins(),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -124,6 +143,16 @@ def _apply_time_entry(db: Session, user: User, payload: TimeEntryPayload) -> Non
     entry.client_updated_at = payload.client_updated_at
 
 
+def _collapse_changes(changes):
+    latest = {}
+    for change in changes:
+        record_id = change.data.id
+        existing = latest.get(record_id)
+        if not existing or change.data.client_updated_at >= existing.data.client_updated_at:
+            latest[record_id] = change
+    return list(latest.values())
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -172,10 +201,10 @@ def sync(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    for change in payload.changes.tasks:
+    for change in _collapse_changes(payload.changes.tasks):
         _apply_task(db, user, change.data)
 
-    for change in payload.changes.time_entries:
+    for change in _collapse_changes(payload.changes.time_entries):
         _apply_time_entry(db, user, change.data)
 
     db.commit()
