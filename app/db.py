@@ -4,7 +4,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./timecheck.db")
+DEFAULT_SQLITE_PATH = "/home/micvant/PycharmProjects/TimeCheck_backend/timecheck.db"
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_SQLITE_PATH}")
 
 
 connect_args = {}
